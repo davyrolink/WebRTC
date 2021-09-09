@@ -128,6 +128,15 @@ class WebRTCCamera extends HTMLElement {
         });
     }
 
+    visibilitychangeHandler = async () => {
+        console.log('visibilityChange');
+        if (!document.hidden && this.isConnected) {
+            await this.connectedCallback();
+        } else {
+            this.disconnectedCallback();
+        }
+    };
+
     set status(value) {
         const header = this.getElementsByClassName('header')[0];
         header.innerText = value;
@@ -382,8 +391,6 @@ class WebRTCCamera extends HTMLElement {
             this.setPTZVisibility(true);
         };
 
-        this.initPageVisibilityListener();
-
         if (this.config.ui) {
             this.renderCustomGUI(card);
         }
@@ -426,39 +433,17 @@ class WebRTCCamera extends HTMLElement {
         };
     }
 
-    initPageVisibilityListener() {
-        var hidden, visibilityChange;
-        if (typeof document.hidden !== 'undefined') {
-            // Opera 12.10 and Firefox 18 and later support
-            hidden = 'hidden';
-            visibilityChange = 'visibilitychange';
-        } else if (typeof document.msHidden !== 'undefined') {
-            hidden = 'msHidden';
-            visibilityChange = 'msvisibilitychange';
-        } else if (typeof document.webkitHidden !== 'undefined') {
-            hidden = 'webkitHidden';
-            visibilityChange = 'webkitvisibilitychange';
-        }
-
-        document.addEventListener(
-            visibilityChange,
-            async () => {
-                console.log('visibilityChange');
-                if (!document[hidden] && this.isConnected) {
-                    await this.connectedCallback();
-                } else {
-                    this.disconnectedCallback();
-                }
-            },
-            false
-        );
-    }
-
     async connectedCallback() {
+        console.log('connectedCallback');
+
         if (!this.config) return;
 
         if (this.childElementCount === 0) {
+            console.log('connectedCallback with childElementCount===0');
+
             await this.renderGUI(this._hass);
+
+            document.addEventListener('visibilitychange', this.visibilitychangeHandler);
         }
 
         this.status = 'Init connection';
