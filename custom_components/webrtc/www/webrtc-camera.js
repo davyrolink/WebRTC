@@ -143,84 +143,84 @@ class WebRTCCamera extends HTMLElement {
         header.style.display = value ? 'block' : 'none';
     }
 
-    renderCustomGUI(card) {
-        const video = this.getElementsByTagName('video')[0];
-        video.controls = false;
-        video.style.pointerEvents = 'none';
+    // renderCustomGUI(card) {
+    //     const video = this.getElementsByTagName('video')[0];
+    //     video.controls = false;
+    //     video.style.pointerEvents = 'none';
 
-        const spinner = document.createElement('ha-circular-progress');
-        spinner.active = true;
-        spinner.className = 'spinner';
-        card.appendChild(spinner);
+    //     const spinner = document.createElement('ha-circular-progress');
+    //     spinner.active = true;
+    //     spinner.className = 'spinner';
+    //     card.appendChild(spinner);
 
-        const pause = document.createElement('ha-icon');
-        pause.className = 'pause';
-        pause.icon = 'mdi:pause';
-        pause.onclick = () => {
-            if (video.paused) {
-                video.play().then(
-                    () => null,
-                    () => null
-                );
-            } else {
-                video.pause();
-            }
-        };
-        card.appendChild(pause);
+    //     const pause = document.createElement('ha-icon');
+    //     pause.className = 'pause';
+    //     pause.icon = 'mdi:pause';
+    //     pause.onclick = () => {
+    //         if (video.paused) {
+    //             video.play().then(
+    //                 () => null,
+    //                 () => null
+    //             );
+    //         } else {
+    //             video.pause();
+    //         }
+    //     };
+    //     card.appendChild(pause);
 
-        const fullscreen = document.createElement('ha-icon');
-        fullscreen.className = 'fullscreen';
-        fullscreen.icon = 'mdi:fullscreen';
-        fullscreen.onclick = () => {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                this.requestFullscreen();
-            }
-        };
-        card.appendChild(fullscreen);
+    //     const fullscreen = document.createElement('ha-icon');
+    //     fullscreen.className = 'fullscreen';
+    //     fullscreen.icon = 'mdi:fullscreen';
+    //     fullscreen.onclick = () => {
+    //         if (document.fullscreenElement) {
+    //             document.exitFullscreen();
+    //         } else {
+    //             this.requestFullscreen();
+    //         }
+    //     };
+    //     card.appendChild(fullscreen);
 
-        this.onfullscreenchange = () => {
-            if (document.fullscreenElement) {
-                fullscreen.icon = 'mdi:fullscreen-exit';
-            } else {
-                fullscreen.icon = 'mdi:fullscreen';
-            }
-        };
+    //     this.onfullscreenchange = () => {
+    //         if (document.fullscreenElement) {
+    //             fullscreen.icon = 'mdi:fullscreen-exit';
+    //         } else {
+    //             fullscreen.icon = 'mdi:fullscreen';
+    //         }
+    //     };
 
-        video.addEventListener('loadeddata', () => {
-            if (video.srcObject.getAudioTracks().length) {
-                const volume = document.createElement('ha-icon');
-                volume.className = 'volume';
-                volume.icon = 'mdi:volume-mute';
-                volume.onclick = () => {
-                    video.muted = !video.muted;
-                };
-                card.appendChild(volume);
+    //     video.addEventListener('loadeddata', () => {
+    //         if (video.srcObject.getAudioTracks().length) {
+    //             const volume = document.createElement('ha-icon');
+    //             volume.className = 'volume';
+    //             volume.icon = 'mdi:volume-mute';
+    //             volume.onclick = () => {
+    //                 video.muted = !video.muted;
+    //             };
+    //             card.appendChild(volume);
 
-                video.onvolumechange = () => {
-                    volume.icon = video.muted ? 'mdi:volume-mute' : 'mdi:volume-high';
-                };
-            }
-            pause.style.display = 'block';
-        });
-        video.onpause = () => {
-            pause.icon = 'mdi:play';
-            this.setPTZVisibility(false);
-        };
-        video.onplay = () => {
-            pause.icon = 'mdi:pause';
-            this.setPTZVisibility(true);
-        };
-        video.onwaiting = () => {
-            spinner.style.display = 'block';
-            this.setPTZVisibility(false);
-        };
-        video.onplaying = () => {
-            spinner.style.display = 'none';
-            this.setPTZVisibility(true);
-        };
-    }
+    //             video.onvolumechange = () => {
+    //                 volume.icon = video.muted ? 'mdi:volume-mute' : 'mdi:volume-high';
+    //             };
+    //         }
+    //         pause.style.display = 'block';
+    //     });
+    //     video.onpause = () => {
+    //         pause.icon = 'mdi:play';
+    //         this.setPTZVisibility(false);
+    //     };
+    //     video.onplay = () => {
+    //         pause.icon = 'mdi:pause';
+    //         this.setPTZVisibility(true);
+    //     };
+    //     video.onwaiting = () => {
+    //         spinner.style.display = 'block';
+    //         this.setPTZVisibility(false);
+    //     };
+    //     video.onplaying = () => {
+    //         spinner.style.display = 'none';
+    //         this.setPTZVisibility(true);
+    //     };
+    // }
 
     renderPTZ(card, hass) {
         const ptz = document.createElement('div');
@@ -250,6 +250,7 @@ class WebRTCCamera extends HTMLElement {
 
     async renderGUI(hass) {
         console.log('renderGUI');
+        console.log('this.config: ', this.config);
 
         const style = document.createElement('style');
         style.textContent = `
@@ -391,9 +392,9 @@ class WebRTCCamera extends HTMLElement {
             this.setPTZVisibility(true);
         };
 
-        if (this.config.ui) {
-            this.renderCustomGUI(card);
-        }
+        // if (this.config.ui) {
+        //     this.renderCustomGUI(card);
+        // }
 
         if (this.config.ptz) {
             this.renderPTZ(card, hass);
