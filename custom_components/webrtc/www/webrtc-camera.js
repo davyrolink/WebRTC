@@ -18,34 +18,30 @@ class WebRTCCamera extends HTMLElement {
                 type: 'webrtc/stream',
                 url: this.config.url || null,
                 entity: this.config.entity || null,
-                sdp64: btoa(pc.localDescription.sdp)
+                sdp64: btoa(pc.localDescription.sdp),
             });
         } catch (e) {
-            data = {error: JSON.stringify(e)}
+            data = { error: JSON.stringify(e) };
         }
 
         if (typeof data.sdp64 !== 'undefined') {
             // remove docker IP-address
-            const sdp = atob(data.sdp64).replace(
-                /a=candidate.+? 172\.\d+\.\d+\.1 .+?\r\n/g, ''
+            const sdp = atob(data.sdp64).replace(/a=candidate.+? 172\.\d+\.\d+\.1 .+?\r\n/g, '');
+
+            await pc.setRemoteDescription(
+                new RTCSessionDescription({
+                    type: 'answer',
+                    sdp: sdp,
+                })
             );
 
-            await pc.setRemoteDescription(new RTCSessionDescription({
-                type: 'answer',
-                sdp: sdp
-            }));
-
             // check external IP-address
-            this.status = (sdp.indexOf(' typ srflx ') > 0)
-                ? "Trying to connect"
-                : "Trying to connect over LAN";
+            this.status = sdp.indexOf(' typ srflx ') > 0 ? 'Trying to connect' : 'Trying to connect over LAN';
         } else {
-            this.status = (typeof data.error !== 'undefined')
-                ? `ERROR: ${data.error}`
-                : "ERROR: Empty response from Hass";
+            this.status = typeof data.error !== 'undefined' ? `ERROR: ${data.error}` : 'ERROR: Empty response from Hass';
 
             setTimeout(async () => {
-                this.status = "Restart connection";
+                this.status = 'Restart connection';
 
                 await this.exchangeSDP(hass, pc);
             }, 10000);
@@ -54,10 +50,12 @@ class WebRTCCamera extends HTMLElement {
 
     async initWebRTC(hass) {
         let pc = new RTCPeerConnection({
-            iceServers: [{
-                urls: ['stun:stun.l.google.com:19302']
-            }],
-            iceCandidatePoolSize: 20
+            iceServers: [
+                {
+                    urls: ['stun:stun.l.google.com:19302'],
+                },
+            ],
+            iceCandidatePoolSize: 20,
         });
 
         pc.onicecandidate = async (ev) => {
@@ -70,15 +68,15 @@ class WebRTCCamera extends HTMLElement {
                     const pair = iceTransport.getSelectedCandidatePair();
                     const type = pair.remote.type === 'host' ? 'LAN' : 'WAN';
                     this.status = `Connecting over ${type}`;
-                }
+                };
             } catch (e) {
                 // Hi to Safari and Firefox...
             }
 
-            this.status = "Trying to start stream";
+            this.status = 'Trying to start stream';
 
             await this.exchangeSDP(hass, pc);
-        }
+        };
 
         pc.ontrack = (ev) => {
             const video = this.getElementsByTagName('video')[0];
@@ -87,21 +85,21 @@ class WebRTCCamera extends HTMLElement {
             } else {
                 video.srcObject.addTrack(ev.track);
             }
-        }
+        };
 
         pc.onconnectionstatechange = async (ev) => {
             // https://developer.mozilla.org/en-US/docs/Web/API/RTCOfferOptions/iceRestart
             // console.debug("Connection state:", pc.connectionState);
             if (pc.connectionState === 'failed') {
                 // if we have not started a second connection
-                this.status = "Restart connection";
+                this.status = 'Restart connection';
 
-                const offer = await pc.createOffer({iceRestart: true})
+                const offer = await pc.createOffer({ iceRestart: true });
                 await pc.setLocalDescription(offer);
             } else if (pc.connectionState === 'connected') {
-                this.status = "Connected";
+                this.status = 'Connected';
             }
-        }
+        };
 
         // https://stackoverflow.com/questions/9847580/how-to-detect-safari-chrome-ie-firefox-and-opera-browser
         const isFirefox = typeof InstallTrigger !== 'undefined';
@@ -112,9 +110,9 @@ class WebRTCCamera extends HTMLElement {
         // and Firefox can't play video with Bunny even with sendrecv
         const direction = !isFirefox ? 'recvonly' : 'sendrecv';
 
-        pc.addTransceiver('video', {'direction': direction});
+        pc.addTransceiver('video', { direction: direction });
         if (this.config.audio !== false) {
-            pc.addTransceiver('audio', {'direction': direction});
+            pc.addTransceiver('audio', { direction: direction });
         }
 
         await pc.setLocalDescription(await pc.createOffer());
@@ -125,13 +123,13 @@ class WebRTCCamera extends HTMLElement {
 
             const video = this.getElementsByTagName('video')[0];
             video.srcObject = null;
-            
-            console.debug("Closing RTCPeerConnection");
-        });        
+
+            console.debug('Closing RTCPeerConnection');
+        });
     }
 
     set status(value) {
-        const header = this.getElementsByClassName("header")[0];
+        const header = this.getElementsByClassName('header')[0];
         header.innerText = value;
         header.style.display = value ? 'block' : 'none';
     }
@@ -143,7 +141,7 @@ class WebRTCCamera extends HTMLElement {
 
         const spinner = document.createElement('ha-circular-progress');
         spinner.active = true;
-        spinner.className = 'spinner'
+        spinner.className = 'spinner';
         card.appendChild(spinner);
 
         const pause = document.createElement('ha-icon');
@@ -151,7 +149,10 @@ class WebRTCCamera extends HTMLElement {
         pause.icon = 'mdi:pause';
         pause.onclick = () => {
             if (video.paused) {
-                video.play().then(() => null, () => null);
+                video.play().then(
+                    () => null,
+                    () => null
+                );
             } else {
                 video.pause();
             }
@@ -214,7 +215,7 @@ class WebRTCCamera extends HTMLElement {
 
     renderPTZ(card, hass) {
         const ptz = document.createElement('div');
-        ptz.className = 'ptz'
+        ptz.className = 'ptz';
         ptz.style.opacity = this.config.ptz.opacity || '0.4';
         ptz.innerHTML = `
             <ha-icon class="right" icon="mdi:arrow-right"></ha-icon>
@@ -230,7 +231,7 @@ class WebRTCCamera extends HTMLElement {
             if (data) {
                 hass.callService(domain, service, data);
             }
-        }
+        };
 
         const buttons = ptz.getElementsByTagName('ha-icon');
         Array.from(buttons).forEach(function (el) {
@@ -358,7 +359,10 @@ class WebRTCCamera extends HTMLElement {
 
         video.onstalled = video.onerror = () => {
             video.srcObject = new MediaStream(video.srcObject.getTracks());
-            video.play().then(() => null, () => null);
+            video.play().then(
+                () => null,
+                () => null
+            );
         };
 
         video.onloadeddata = () => {
@@ -368,7 +372,7 @@ class WebRTCCamera extends HTMLElement {
             } else {
                 this.setPTZVisibility(false);
             }
-        }
+        };
 
         video.onpause = () => {
             this.setPTZVisibility(false);
@@ -379,22 +383,6 @@ class WebRTCCamera extends HTMLElement {
         };
 
         this.initPageVisibilityListener();
-
-        // const observer = new IntersectionObserver(
-        //     (entries) => {
-        //         entries.forEach((entry) => {
-        //             if (entry.isIntersecting) {
-        //                 console.log('play!!');
-        //                 video.play().then(() => null, () => null);
-        //             } else {
-        //                 console.log('pauze!!');
-        //                 video.pause();
-        //             }
-        //         });
-        //     },
-        //     {threshold: this.config.intersection || 0.5}
-        // );
-        // observer.observe(video);
 
         if (this.config.ui) {
             this.renderCustomGUI(card);
@@ -422,7 +410,7 @@ class WebRTCCamera extends HTMLElement {
         }
 
         if (config.ptz && !config.ptz.service) {
-            throw new Error("Missing `service` for `ptz`");
+            throw new Error('Missing `service` for `ptz`');
         }
 
         this.config = config;
@@ -434,31 +422,36 @@ class WebRTCCamera extends HTMLElement {
 
     static getStubConfig() {
         return {
-            url: 'rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov'
-        }
+            url: 'rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov',
+        };
     }
 
     initPageVisibilityListener() {
         var hidden, visibilityChange;
-        if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
-            hidden = "hidden";
-            visibilityChange = "visibilitychange";
-        } else if (typeof document.msHidden !== "undefined") {
-            hidden = "msHidden";
-            visibilityChange = "msvisibilitychange";
-        } else if (typeof document.webkitHidden !== "undefined") {
-            hidden = "webkitHidden";
-            visibilityChange = "webkitvisibilitychange";
+        if (typeof document.hidden !== 'undefined') {
+            // Opera 12.10 and Firefox 18 and later support
+            hidden = 'hidden';
+            visibilityChange = 'visibilitychange';
+        } else if (typeof document.msHidden !== 'undefined') {
+            hidden = 'msHidden';
+            visibilityChange = 'msvisibilitychange';
+        } else if (typeof document.webkitHidden !== 'undefined') {
+            hidden = 'webkitHidden';
+            visibilityChange = 'webkitvisibilitychange';
         }
 
-        document.addEventListener(visibilityChange, async () => {
-            console.log('visibilityChange');
-            if (!document[hidden] && this.isConnected) {
-                await this.connectedCallback();
-            } else {
-                this.disconnectedCallback();
-            }
-        }, false);
+        document.addEventListener(
+            visibilityChange,
+            async () => {
+                console.log('visibilityChange');
+                if (!document[hidden] && this.isConnected) {
+                    await this.connectedCallback();
+                } else {
+                    this.disconnectedCallback();
+                }
+            },
+            false
+        );
     }
 
     async connectedCallback() {
@@ -468,14 +461,14 @@ class WebRTCCamera extends HTMLElement {
             await this.renderGUI(this._hass);
         }
 
-        this.status = "Init connection";
+        this.status = 'Init connection';
         await this.initWebRTC(this._hass);
     }
 
-    disconnectedCallback(){
+    disconnectedCallback() {
         console.log('disconnectedCallback');
-        
-        this.subscriptions.forEach(callback => callback());
+
+        this.subscriptions.forEach((callback) => callback());
         this.subscriptions = [];
     }
 }
