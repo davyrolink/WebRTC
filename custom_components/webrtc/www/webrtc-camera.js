@@ -1,4 +1,16 @@
 class WebRTCCamera extends HTMLElement {
+    subscriptions = [];
+
+    set hass(hass) {
+        // Whenever anything updates in Home Assistant, the hass object is updated
+        // and passed out to every card. If you want to react to state changes, this is where
+        // you do it. If not, you can just ommit this setter entirely.
+        // Note that if you do NOT have a `set hass(hass)` in your class, you can access the hass
+        // object through `this.hass`. But if you DO have it, you need to save the hass object
+        // manually, thusly:
+        this._hass = hass;
+    }
+
     async exchangeSDP(hass, pc) {
         let data;
         try {
@@ -40,8 +52,8 @@ class WebRTCCamera extends HTMLElement {
         }
     }
 
-    async initConnection(hass) {
-        const pc = new RTCPeerConnection({
+    async initWebRTC(hass) {
+        let pc = new RTCPeerConnection({
             iceServers: [{
                 urls: ['stun:stun.l.google.com:19302']
             }],
@@ -106,6 +118,16 @@ class WebRTCCamera extends HTMLElement {
         }
 
         await pc.setLocalDescription(await pc.createOffer());
+
+        this.subscriptions.push(() => {
+            pc.close();
+            pc = null;
+
+            const video = this.getElementsByTagName('video')[0];
+            video.srcObject = null;
+            
+            console.debug("Closing RTCPeerConnection");
+        });        
     }
 
     set status(value) {
@@ -217,6 +239,8 @@ class WebRTCCamera extends HTMLElement {
     }
 
     async renderGUI(hass) {
+        console.log('renderGUI');
+
         const style = document.createElement('style');
         style.textContent = `
             ha-card {
@@ -354,19 +378,23 @@ class WebRTCCamera extends HTMLElement {
             this.setPTZVisibility(true);
         };
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        video.play().then(() => null, () => null);
-                    } else {
-                        video.pause();
-                    }
-                });
-            },
-            {threshold: this.config.intersection || 0.5}
-        );
-        observer.observe(video);
+        this.initPageVisibilityListener();
+
+        // const observer = new IntersectionObserver(
+        //     (entries) => {
+        //         entries.forEach((entry) => {
+        //             if (entry.isIntersecting) {
+        //                 console.log('play!!');
+        //                 video.play().then(() => null, () => null);
+        //             } else {
+        //                 console.log('pauze!!');
+        //                 video.pause();
+        //             }
+        //         });
+        //     },
+        //     {threshold: this.config.intersection || 0.5}
+        // );
+        // observer.observe(video);
 
         if (this.config.ui) {
             this.renderCustomGUI(card);
@@ -375,15 +403,6 @@ class WebRTCCamera extends HTMLElement {
         if (this.config.ptz) {
             this.renderPTZ(card, hass);
         }
-    }
-
-    set hass(hass) {
-        if (this.firstChild || typeof this.config === 'undefined') return;
-
-        this.renderGUI(hass).then(async () => {
-            this.status = "Init connection";
-            await this.initConnection(hass);
-        });
     }
 
     setPTZVisibility(show) {
@@ -402,13 +421,6 @@ class WebRTCCamera extends HTMLElement {
             throw new Error('Missing `url` or `entity`');
         }
 
-        // this integraion https://github.com/thomasloven/hass-fontawesome
-        // breaks the `!!window.opera` check in all browsers
-        const isOpera = (!!window.opr && !!opr.addons) || navigator.userAgent.indexOf(' OPR/') >= 0;
-        if (isOpera) {
-            throw new Error("Opera doesn't supported");
-        }
-
         if (config.ptz && !config.ptz.service) {
             throw new Error("Missing `service` for `ptz`");
         }
@@ -424,6 +436,47 @@ class WebRTCCamera extends HTMLElement {
         return {
             url: 'rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov'
         }
+    }
+
+    initPageVisibilityListener() {
+        var hidden, visibilityChange;
+        if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
+            hidden = "hidden";
+            visibilityChange = "visibilitychange";
+        } else if (typeof document.msHidden !== "undefined") {
+            hidden = "msHidden";
+            visibilityChange = "msvisibilitychange";
+        } else if (typeof document.webkitHidden !== "undefined") {
+            hidden = "webkitHidden";
+            visibilityChange = "webkitvisibilitychange";
+        }
+
+        document.addEventListener(visibilityChange, async () => {
+            console.log('visibilityChange');
+            if (!document[hidden] && this.isConnected) {
+                await this.connectedCallback();
+            } else {
+                this.disconnectedCallback();
+            }
+        }, false);
+    }
+
+    async connectedCallback() {
+        if (!this.config) return;
+
+        if (this.childElementCount === 0) {
+            await this.renderGUI(this._hass);
+        }
+
+        this.status = "Init connection";
+        await this.initWebRTC(this._hass);
+    }
+
+    disconnectedCallback(){
+        console.log('disconnectedCallback');
+        
+        this.subscriptions.forEach(callback => callback());
+        this.subscriptions = [];
     }
 }
 
